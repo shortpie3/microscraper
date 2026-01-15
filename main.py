@@ -2,7 +2,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By  # Was missing
+from selenium.webdriver.common.by import By # CRITICAL: This was missing
 import time
 import os
 
@@ -16,7 +16,7 @@ def setup_driver():
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
     
-    # Path for the Docker environment
+    # Path where Docker installs Chrome
     chrome_options.binary_location = "/usr/bin/google-chrome"
     
     driver = webdriver.Chrome(options=chrome_options)
@@ -32,11 +32,11 @@ async def scrape(q: str = Query(..., min_length=1)):
     try:
         driver = setup_driver()
 
-        # Micro Center search URL
+        # Target the Micro Center search page directly
         url = f"https://www.microcenter.com/search/search_results.aspx?Ntt={q.replace(' ', '+')}"
         driver.get(url)
 
-        # Allow time for JavaScript to render product cards
+        # Allow time for product cards to load
         time.sleep(5)
 
         html = driver.page_source
@@ -49,18 +49,17 @@ async def scrape(q: str = Query(..., min_length=1)):
             }
 
         items = []
-        # Target the actual list items containing products
+        # Find all actual product list items
         products = driver.find_elements(By.CSS_SELECTOR, "li.productDescription")
 
         for product in products:
             try:
-                # 1. Extract Title and Link from the <a> tag
+                # Extract actual Title and Link
                 title_element = product.find_element(By.CSS_SELECTOR, "h4 a")
                 title = title_element.get_attribute("data-name") or title_element.text
                 link = title_element.get_attribute("href")
                 
-                # 2. Extract Price from the itemprop span
-                # Micro Center usually stores the numerical price in the 'content' attribute
+                # Extract actual Price
                 price_element = product.find_element(By.CSS_SELECTOR, "span[itemprop='price']")
                 price_text = price_element.get_attribute("content")
                 price = float(price_text) if price_text else 0.0
@@ -71,12 +70,10 @@ async def scrape(q: str = Query(..., min_length=1)):
                         'price': price,
                         'link': link,
                         'source': 'Micro Center',
-                        'condition': 'New',
-                        'store_availability': 'Check website'
+                        'condition': 'New'
                     })
             except Exception:
-                # Skip products that are missing data (like ads or placeholders)
-                continue
+                continue # Skip items that aren't valid products
 
         return {
             "query": q,
