@@ -2,7 +2,8 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By # CRITICAL: This was missing
+from selenium.webdriver.common.by import By
+
 import time
 import os
 
@@ -15,10 +16,9 @@ def setup_driver():
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
-    
-    # Path where Docker installs Chrome
+
     chrome_options.binary_location = "/usr/bin/google-chrome"
-    
+
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 
@@ -32,11 +32,9 @@ async def scrape(q: str = Query(..., min_length=1)):
     try:
         driver = setup_driver()
 
-        # Target the Micro Center search page directly
         url = f"https://www.microcenter.com/search/search_results.aspx?Ntt={q.replace(' ', '+')}"
         driver.get(url)
 
-        # Allow time for product cards to load
         time.sleep(5)
 
         html = driver.page_source
@@ -49,17 +47,16 @@ async def scrape(q: str = Query(..., min_length=1)):
             }
 
         items = []
-        # Find all actual product list items
+
         products = driver.find_elements(By.CSS_SELECTOR, "li.productDescription")
 
         for product in products:
             try:
-                # Extract actual Title and Link
+
                 title_element = product.find_element(By.CSS_SELECTOR, "h4 a")
                 title = title_element.get_attribute("data-name") or title_element.text
                 link = title_element.get_attribute("href")
-                
-                # Extract actual Price
+
                 price_element = product.find_element(By.CSS_SELECTOR, "span[itemprop='price']")
                 price_text = price_element.get_attribute("content")
                 price = float(price_text) if price_text else 0.0
@@ -73,7 +70,7 @@ async def scrape(q: str = Query(..., min_length=1)):
                         'condition': 'New'
                     })
             except Exception:
-                continue # Skip items that aren't valid products
+                continue
 
         return {
             "query": q,
@@ -91,3 +88,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=port)
+
