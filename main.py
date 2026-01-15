@@ -13,15 +13,16 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
 def setup_driver():
     chrome_options = Options()
-
+    chrome_options.add_argument('--headless=new')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--headless=new')
-
     chrome_options.add_argument('--disable-gpu')
-
+    
+    # This matches the path where the Dockerfile installs Chrome
     chrome_options.binary_location = "/usr/bin/google-chrome"
-
+    
+    # Selenium 4.16.0 handles the driver download automatically
+    # if the browser is present.
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 
